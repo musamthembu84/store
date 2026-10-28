@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:16.2
+    restart: always
+    command: postgres -c wal_level=logical
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: store
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d store"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Inside the compose network the app talks to the "postgres" service on its real port
+      # (5432) - the 5433 host mapping above only matters for connecting from outside Docker.
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/store
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: admin
+    ports:
+      - "8080:8080"
+
+volumes:
+  postgres-data:
