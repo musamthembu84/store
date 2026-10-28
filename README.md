@@ -12,7 +12,12 @@ This service assumes the presence of a postgresql 16.2 database server running o
 It assumes a username and password `admin:admin` can be used.
 It assumes there's already a database called `store`
 
-You can start the PostgreSQL instance like this:
+The simplest way to start it is via the `docker-compose.yml` in this repo:
+```shell
+docker compose up -d postgres
+```
+
+Alternatively, you can start a standalone container yourself:
 ```shell
 docker run -d \
   --name postgres \
@@ -27,26 +32,37 @@ docker run -d \
 ```
 
 # Running the application
-You should be able to run the service using
+There are two ways to run the application, depending on what you're doing.
+
+**Local development** (fastest inner loop - recompiles and restarts quickly): start only Postgres via Docker, then run the app directly on your machine.
 ```shell
+docker compose up -d postgres
 ./gradlew bootRun
 ```
+The app needs Postgres already running and reachable at `localhost:5433` before `bootRun` is started - it does not start Postgres for you. If you see a `Connection to localhost:5433 refused` error, Postgres isn't up yet.
 
-The application uses Liquibase to migrate the schema. Some sample data is provided. You can create more data by reading the documentation in utils/README.md
+**Fully containerized** (matches what CI builds and publishes - use this to sanity-check the Docker image itself): build and run the app and Postgres together.
+```shell
+docker compose up --build -d
+```
+
+In both cases, the application uses Liquibase to migrate the schema. Some sample data is provided. You can create more data by reading the documentation in utils/README.md
 
 # Data model
-An order has an ID, a description, and is associated with the customer which made the order.
+An order has an ID, a description, is associated with the customer which made the order, and contains 1 or more products.
 A customer has an ID, a name, and 0 or more orders.
+A product has an ID, a description, and can appear in 0 or more orders.
 
 # API
-Two endpoints are provided:
-   * /order
-   * /customer
+Three resources are provided:
+   * `/order` - GET (list, or a single order via `/order/{id}`), POST
+   * `/customer` - GET (list, or filtered via `/customer?query=...` to match a substring of one word in the customer's name), POST
+   * `/products` - GET (list, or a single product via `/products/{id}`), POST
 
-Each of them supports a POST and a GET. The data model is circular - a customer owns a number of orders, and that order necessarily refers back to the customer which owns it.
-To avoid loops in the serializer, when writing out a Customer or an Order, they're mapped to CustomerDTO and OrderDTO which contain truncated versions of the dependent object - CustomerOrderDTO and OrderCustomerDTO respectively.
+The data model is circular - a customer owns a number of orders, an order refers back to the customer which owns it, and an order contains 1 or more products (a product can appear in many orders).
+To avoid loops in the serializer, entities are mapped to DTOs containing truncated versions of their dependent objects (e.g. `CustomerOrderDTO`, `OrderCustomerDTO`, `OrderProductDTO`) rather than the full related entity.
 
-The API is documented in the OpenAPI file OpenAPI.yaml. Note that this spec includes part of one of the tasks below (the new /products endpoint)
+The API is fully documented in `OpenAPI.yaml`, including request/response shapes, validation rules, and the error response shape used consistently across all endpoints.
 
 # Tasks
 
@@ -63,6 +79,8 @@ The API is documented in the OpenAPI file OpenAPI.yaml. Note that this spec incl
 
 # Bonus points
 1. Implement a CI pipeline on the platform of your choice to build the project and deliver it as a Dockerized image
+
+Implemented via GitHub Actions (`.github/workflows/ci.yml`): every push and pull request runs `spotlessCheck` and the full test suite; on a push to `master`, the Docker image is additionally built, pushed to GitHub Container Registry, and scanned for vulnerabilities with Trivy. See `Dockerfile` and `docker-compose.yml` for the image build and local orchestration.
 
 # Notes on the tasks
 Assume that the project represents a production application.
