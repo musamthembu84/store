@@ -63,6 +63,10 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}:latest
             ghcr.io/${{ github.repository }}:${{ github.sha }}
+          # GHCR has a known "unknown blob" bug when buildx pushes the provenance/SBOM
+          # attestation manifest it generates by default - disable both.
+          provenance: false
+          sbom: false
 
       # Report-only by default (exit-code 0) so a base-image CVE we don't control doesn't block
       # delivery; flip exit-code to 1 once there's a triage process to act on findings.
