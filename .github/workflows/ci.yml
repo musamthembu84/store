@@ -67,7 +67,7 @@ jobs:
       # Report-only by default (exit-code 0) so a base-image CVE we don't control doesn't block
       # delivery; flip exit-code to 1 once there's a triage process to act on findings.
       - name: Scan image for vulnerabilities
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ghcr.io/${{ github.repository }}:${{ github.sha }}
           severity: CRITICAL,HIGH
